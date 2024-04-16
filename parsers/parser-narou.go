@@ -37,7 +37,11 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) []SectionData {
 		for i := 0; indexBox.Length() != 0; i++ {
 			parsePage(&result, &chapterCounter, indexBox)
 
-			doc, err := FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
+			resp, err := FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
+			if err != nil {
+				break
+			}
+			doc, err := goquery.NewDocumentFromReader(resp.Body)
 			if err != nil {
 				break
 			}

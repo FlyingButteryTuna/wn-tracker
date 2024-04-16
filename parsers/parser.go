@@ -31,7 +31,7 @@ type NovelData struct {
 	Link     string        `json:"link,omitempty"`
 }
 
-func FetchPage(url string, client *http.Client) (*goquery.Document, error) {
+func FetchPage(url string, client *http.Client) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -48,10 +48,5 @@ func FetchPage(url string, client *http.Client) (*goquery.Document, error) {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't load the HTML document")
-	}
-
-	return doc, nil
+	return resp, nil
 }
