@@ -34,7 +34,7 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) []SectionData {
 
 	if doc.Find(".novelview_pager").Length() != 0 {
 		client := &http.Client{}
-		for i := 0; indexBox.Length() != 0; i++ {
+		for i := 2; indexBox.Length() != 0; i++ {
 			parsePage(&result, &chapterCounter, indexBox)
 
 			resp, err := FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
