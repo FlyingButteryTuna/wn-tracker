@@ -23,6 +23,7 @@ type ChapterData struct {
 type SectionData struct {
 	Name     string        `json:"name,omitempty"`
 	Chapters []ChapterData `json:"chapters,omitempty"`
+	Level    uint8         `json:"level,omitempty"`
 }
 
 type NovelData struct {
