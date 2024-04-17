@@ -1,6 +1,7 @@
 package parsers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,17 +10,21 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const timeLayout = "2006/01/02 15:04"
+const timeLayoutNarou = "2006/01/02 15:04"
 
 type NarouParser struct {
 	Link string
 }
 
-func (p *NarouParser) ParseTitle(doc *goquery.Document) string {
-	return doc.Find("p.novel_title").Text()
+func (p *NarouParser) ParseTitle(doc *goquery.Document) (string, error) {
+	titleElem := doc.Find("p.novel_title")
+	if titleElem.Length() == 0 {
+		return "", fmt.Errorf("error paring the novel_title element")
+	}
+	return titleElem.Text(), nil
 }
 
-func (p *NarouParser) ParseTOC(doc *goquery.Document) []SectionData {
+func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) {
 	result := make([]SectionData, 0)
 
 	indexBox := doc.Find(".index_box")
@@ -34,13 +39,15 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) []SectionData {
 
 	if doc.Find(".novelview_pager").Length() != 0 {
 		client := &http.Client{}
+
 		for i := 2; indexBox.Length() != 0; i++ {
 			parsePage(&result, &chapterCounter, indexBox)
 
 			resp, err := FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
 			if err != nil {
-				break
+				return nil, err
 			}
+
 			doc, err := goquery.NewDocumentFromReader(resp.Body)
 			if err != nil {
 				break
@@ -51,7 +58,7 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) []SectionData {
 		parsePage(&result, &chapterCounter, indexBox)
 	}
 
-	return result
+	return result, nil
 }
 
 func parsePage(result *[]SectionData, chapterCounter *int, indexBox *goquery.Selection) {
@@ -64,15 +71,16 @@ func parsePage(result *[]SectionData, chapterCounter *int, indexBox *goquery.Sel
 			(*chapterCounter)++
 		} else {
 			chapterData := ChapterData{}
+
 			aElem := s.Find(".subtitle").Find("a")
 			chapterData.Name = aElem.Text()
 			chapterData.Link, _ = aElem.Attr("href")
 
 			updateElem := s.Find(".long_update")
-			chapterData.DatePosted, _ = time.Parse(timeLayout, strings.TrimSpace(updateElem.Text()[:17]))
+			chapterData.DatePosted, _ = time.Parse(timeLayoutNarou, strings.TrimSpace(updateElem.Text()[:17]))
 			longUpdate := updateElem.Find("span")
 			if longUpdate.Length() != 0 {
-				chapterData.DateUpdated, _ = time.Parse(timeLayout, strings.TrimSpace(longUpdate.AttrOr("title", "")[:17]))
+				chapterData.DateUpdated, _ = time.Parse(timeLayoutNarou, strings.TrimSpace(longUpdate.AttrOr("title", "")[:17]))
 			}
 
 			(*result)[(*chapterCounter)-1].Chapters = append((*result)[(*chapterCounter)-1].Chapters, chapterData)

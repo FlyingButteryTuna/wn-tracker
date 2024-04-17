@@ -9,8 +9,8 @@ import (
 )
 
 type NovelParser interface {
-	ParseTOC(body *goquery.Document) []SectionData
-	ParseTitle(body *goquery.Document) string
+	ParseTOC(body *goquery.Document) ([]SectionData, error)
+	ParseTitle(body *goquery.Document) (string, error)
 }
 
 type ChapterData struct {
