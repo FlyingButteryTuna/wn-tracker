@@ -2,7 +2,11 @@ package parsers
 
 import (
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -14,7 +18,7 @@ type NovelParser interface {
 }
 
 type ChapterData struct {
-	Name        string    `json:"name,omitempty"`
+	Title       string    `json:"name,omitempty"`
 	Link        string    `json:"link,omitempty"`
 	DatePosted  time.Time `json:"date_posted,omitempty"`
 	DateUpdated time.Time `json:"date_updated,omitempty"`
@@ -30,6 +34,30 @@ type NovelData struct {
 	Title    string        `json:"title,omitempty"`
 	Sections []SectionData `json:"sections,omitempty"`
 	Link     string        `json:"link,omitempty"`
+}
+
+const (
+	HostNarou    = "ncode.syosetu.com"
+	HostKakuyomu = "kakuyomu.jp"
+)
+
+func NewParser(urlStr string) (NovelParser, error) {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, err
+	}
+
+	var parser NovelParser
+	switch parsedURL.Host {
+	case HostNarou:
+		parser = &NarouParser{Link: urlStr}
+	case HostKakuyomu:
+		parser = &KakuyomuParser{Link: urlStr}
+	default:
+		return nil, fmt.Errorf("couldn't recognize the host")
+	}
+	return parser, nil
+
 }
 
 func FetchPage(url string, client *http.Client) (*http.Response, error) {
@@ -50,4 +78,38 @@ func FetchPage(url string, client *http.Client) (*http.Response, error) {
 	}
 
 	return resp, nil
+}
+
+func SaveAllChapters(novelData *NovelData, novelDirPath string, client *http.Client) error {
+	_, err := os.Stat(novelDirPath)
+	if os.IsNotExist(err) {
+		err = os.Mkdir(novelDirPath, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, section := range novelData.Sections {
+		for _, chapter := range section.Chapters {
+			fullChapterLink := novelData.Link + chapter.Link
+
+			resp, err := FetchPage(fullChapterLink, client)
+			if err != nil {
+				return err
+			}
+
+			file, err := os.Create(filepath.Join(novelDirPath, chapter.Title+".html"))
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+
+			htmlStr, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+			file.Write(htmlStr)
+		}
+	}
+	return nil
 }

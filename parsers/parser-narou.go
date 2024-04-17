@@ -45,12 +45,12 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) {
 
 			resp, err := FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
 			if err != nil {
-				return nil, err
+				break
 			}
 
 			doc, err := goquery.NewDocumentFromReader(resp.Body)
 			if err != nil {
-				break
+				return nil, err
 			}
 			indexBox = doc.Find(".index_box")
 		}
@@ -73,8 +73,10 @@ func parsePage(result *[]SectionData, chapterCounter *int, indexBox *goquery.Sel
 			chapterData := ChapterData{}
 
 			aElem := s.Find(".subtitle").Find("a")
-			chapterData.Name = aElem.Text()
-			chapterData.Link, _ = aElem.Attr("href")
+			chapterData.Title = aElem.Text()
+
+			fullLink, _ := aElem.Attr("href")
+			chapterData.Link = fullLink[strings.LastIndex(fullLink[:len(fullLink)-1], "/"):]
 
 			updateElem := s.Find(".long_update")
 			chapterData.DatePosted, _ = time.Parse(timeLayoutNarou, strings.TrimSpace(updateElem.Text()[:17]))

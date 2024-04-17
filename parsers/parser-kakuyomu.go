@@ -62,10 +62,10 @@ func (p *KakuyomuParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) 
 			publishedAtStr := chapterInfo["publishedAt"].(string)
 			episodeId := chapterInfo["id"].(string)
 
-			chapterLink := p.Link + "/episodes/" + episodeId
+			chapterLink := "/episodes/" + episodeId
 			datePusblished, _ := time.Parse(timeLayoutKakuyomu, publishedAtStr)
 
-			chapterData := ChapterData{Name: chapterTitle, Link: chapterLink, DatePosted: datePusblished}
+			chapterData := ChapterData{Title: chapterTitle, Link: chapterLink, DatePosted: datePusblished}
 			chapters = append(chapters, chapterData)
 		}
 
