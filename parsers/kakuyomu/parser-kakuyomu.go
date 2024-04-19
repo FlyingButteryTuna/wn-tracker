@@ -1,12 +1,14 @@
-package parsers
+package kakuyomu
 
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 	"unicode"
 
+	"github.com/FlyingButterTuna/wn-tracker/novel"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -17,11 +19,18 @@ type KakuyomuParser struct {
 
 const timeLayoutKakuyomu = "2006-01-02T15:04:05Z"
 
+func NewKakuyomuParser(link *url.URL) *KakuyomuParser {
+	return &KakuyomuParser{Link: link.String()}
+}
+
 func (p *KakuyomuParser) ParseTitle(doc *goquery.Document) (string, error) {
 	if len(p.apolloStateJson) == 0 {
-		p.initializeJson(doc)
+		err := p.initializeJson(doc)
+		if err != nil {
+			return "", err
+		}
 	}
-	novelDataJson, ok := p.apolloStateJson[p.valueWorkId()].(map[string]interface{})
+	novelDataJson, ok := p.apolloStateJson[p.workId()].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("error parsing novel data json")
 	}
@@ -32,14 +41,17 @@ func (p *KakuyomuParser) ParseTitle(doc *goquery.Document) (string, error) {
 	return novelTitle, nil
 }
 
-func (p *KakuyomuParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) {
+func (p *KakuyomuParser) ParseTOC(doc *goquery.Document) ([]novel.SectionData, error) {
 	if len(p.apolloStateJson) == 0 {
-		p.initializeJson(doc)
+		err := p.initializeJson(doc)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	sections := make([]SectionData, 0)
+	sections := make([]novel.SectionData, 0)
 
-	toc, ok := p.apolloStateJson[p.valueWorkId()].(map[string]interface{})["tableOfContents"].([]interface{})
+	toc, ok := p.apolloStateJson[p.workId()].(map[string]interface{})["tableOfContents"].([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("error parsing novel data json")
 	}
@@ -50,10 +62,11 @@ func (p *KakuyomuParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) 
 		is_sectionless = true
 	}
 
+	// omit error checks for brevity, if toc is found - assume that there are no changes in the json structure
 	for _, sectionId := range toc {
 		section, _ := p.apolloStateJson[sectionId.(map[string]interface{})["__ref"].(string)].(map[string]interface{})
 
-		chapters := make([]ChapterData, 0)
+		chapters := make([]novel.ChapterData, 0)
 		chapterIds := section["episodeUnions"].([]interface{})
 		for _, chapterId := range chapterIds {
 			chapter := chapterId.(map[string]interface{})["__ref"].(string)
@@ -65,7 +78,7 @@ func (p *KakuyomuParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) 
 			chapterLink := "/episodes/" + episodeId
 			datePusblished, _ := time.Parse(timeLayoutKakuyomu, publishedAtStr)
 
-			chapterData := ChapterData{Title: chapterTitle, Link: chapterLink, DatePosted: datePusblished}
+			chapterData := novel.ChapterData{Title: chapterTitle, Link: chapterLink, DatePosted: datePusblished}
 			chapters = append(chapters, chapterData)
 		}
 
@@ -81,7 +94,7 @@ func (p *KakuyomuParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) 
 			sectionLevel = uint8(1)
 		}
 
-		sectionData := SectionData{Name: sectionTitle, Chapters: chapters, Level: sectionLevel}
+		sectionData := novel.SectionData{Name: sectionTitle, Chapters: chapters, Level: sectionLevel}
 		sections = append(sections, sectionData)
 	}
 
@@ -115,7 +128,7 @@ func (p *KakuyomuParser) initializeJson(doc *goquery.Document) error {
 	return nil
 }
 
-func (p *KakuyomuParser) valueWorkId() string {
+func (p *KakuyomuParser) workId() string {
 	workId := p.Link[strings.LastIndex(p.Link[:strings.LastIndex(p.Link, "/")-1], "/")+1:]
 	workId = strings.Replace(workId, "/", ":", 1)
 	workId = string(unicode.ToUpper(rune(workId[0]))) + workId[1:]

@@ -1,12 +1,15 @@
-package parsers
+package narou
 
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/FlyingButterTuna/wn-tracker/novel"
+	"github.com/FlyingButterTuna/wn-tracker/parsers"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -14,6 +17,10 @@ const timeLayoutNarou = "2006/01/02 15:04"
 
 type NarouParser struct {
 	Link string
+}
+
+func NewNarouParser(link *url.URL) *NarouParser {
+	return &NarouParser{Link: link.String()}
 }
 
 func (p *NarouParser) ParseTitle(doc *goquery.Document) (string, error) {
@@ -24,15 +31,15 @@ func (p *NarouParser) ParseTitle(doc *goquery.Document) (string, error) {
 	return titleElem.Text(), nil
 }
 
-func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) {
-	result := make([]SectionData, 0)
+func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]novel.SectionData, error) {
+	result := make([]novel.SectionData, 0)
 
 	indexBox := doc.Find(".index_box")
 
 	chapterCounter := 0
 	if indexBox.Find(".chapter_title").Length() == 0 {
-		result = append(result, SectionData{})
-		result[0].Chapters = make([]ChapterData, 0)
+		result = append(result, novel.SectionData{})
+		result[0].Chapters = make([]novel.ChapterData, 0)
 		result[0].Name = "default"
 		chapterCounter++
 	}
@@ -43,7 +50,7 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) {
 		for i := 2; indexBox.Length() != 0; i++ {
 			parsePage(&result, &chapterCounter, indexBox)
 
-			resp, err := FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
+			resp, err := parsers.FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
 			if err != nil {
 				break
 			}
@@ -61,16 +68,16 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]SectionData, error) {
 	return result, nil
 }
 
-func parsePage(result *[]SectionData, chapterCounter *int, indexBox *goquery.Selection) {
+func parsePage(result *[]novel.SectionData, chapterCounter *int, indexBox *goquery.Selection) {
 	indexBox.Children().Each(func(i int, s *goquery.Selection) {
 		if s.HasClass("chapter_title") {
 			chapterTitle := s.Text()
-			(*result) = append((*result), SectionData{})
-			(*result)[(*chapterCounter)].Chapters = make([]ChapterData, 0)
+			(*result) = append((*result), novel.SectionData{})
+			(*result)[(*chapterCounter)].Chapters = make([]novel.ChapterData, 0)
 			(*result)[(*chapterCounter)].Name = chapterTitle
 			(*chapterCounter)++
 		} else {
-			chapterData := ChapterData{}
+			chapterData := novel.ChapterData{}
 
 			aElem := s.Find(".subtitle").Find("a")
 			chapterData.Title = aElem.Text()

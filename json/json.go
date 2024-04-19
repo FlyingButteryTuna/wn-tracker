@@ -2,11 +2,12 @@ package json
 
 import (
 	"encoding/json"
-	"github.com/FlyingButterTuna/wn-tracker/parsers"
 	"os"
+
+	"github.com/FlyingButterTuna/wn-tracker/novel"
 )
 
-func SaveNovelDataToFile(novelData parsers.NovelData, filename string) error {
+func SaveNovelDataToFile(novelData novel.NovelData, filename string) error {
 	jsonData, err := json.MarshalIndent(novelData, "", "    ")
 	if err != nil {
 		return err
