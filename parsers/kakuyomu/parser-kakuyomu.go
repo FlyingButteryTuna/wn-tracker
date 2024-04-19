@@ -23,6 +23,29 @@ func NewKakuyomuParser(link *url.URL) *KakuyomuParser {
 	return &KakuyomuParser{Link: link.String()}
 }
 
+func (p *KakuyomuParser) ParseAuthor(doc *goquery.Document) (string, error) {
+	novelDataJson, ok := p.apolloStateJson[p.workId()].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("error parsing novel data json")
+	}
+
+	authorRef, ok := novelDataJson["author"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("error author id")
+	}
+
+	author, ok := p.apolloStateJson[authorRef["__ref"].(string)].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("error author json")
+	}
+
+	authorName, ok := author["activityName"].(string)
+	if !ok {
+		return "", fmt.Errorf("error author name")
+	}
+	return authorName, nil
+}
+
 func (p *KakuyomuParser) ParseTitle(doc *goquery.Document) (string, error) {
 	if len(p.apolloStateJson) == 0 {
 		err := p.initializeJson(doc)
@@ -34,6 +57,7 @@ func (p *KakuyomuParser) ParseTitle(doc *goquery.Document) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("error parsing novel data json")
 	}
+
 	novelTitle, ok := novelDataJson["title"].(string)
 	if !ok {
 		return "", fmt.Errorf("error parsing title from json")

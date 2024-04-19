@@ -23,10 +23,26 @@ func NewNarouParser(link *url.URL) *NarouParser {
 	return &NarouParser{Link: link.String()}
 }
 
+func (p *NarouParser) ParseAuthor(doc *goquery.Document) (string, error) {
+	authorElem := doc.Find(".novel_writername")
+	if authorElem.Length() == 0 {
+		return "", fmt.Errorf("error parsing the novel_writername element")
+	}
+
+	aElem := authorElem.Find("a")
+	if aElem.Length() != 0 {
+		return aElem.Text(), nil
+	}
+
+	authorName := strings.Trim(authorElem.Text(), " \n")
+	authorName = authorName[strings.Index(authorName, "：")+3:]
+	return authorName, nil
+}
+
 func (p *NarouParser) ParseTitle(doc *goquery.Document) (string, error) {
 	titleElem := doc.Find("p.novel_title")
 	if titleElem.Length() == 0 {
-		return "", fmt.Errorf("error paring the novel_title element")
+		return "", fmt.Errorf("error parsing the novel_title element")
 	}
 	return titleElem.Text(), nil
 }

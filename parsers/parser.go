@@ -8,6 +8,7 @@ import (
 type NovelParser interface {
 	ParseTOC(body *goquery.Document) ([]novel.SectionData, error)
 	ParseTitle(body *goquery.Document) (string, error)
+	ParseAuthor(body *goquery.Document) (string, error)
 }
 
 const (

@@ -19,4 +19,5 @@ type NovelData struct {
 	Title    string        `json:"title,omitempty"`
 	Sections []SectionData `json:"sections,omitempty"`
 	Link     string        `json:"link,omitempty"`
+	Author   string        `json:"author,omitempty"`
 }
