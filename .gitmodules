@@ -1,0 +1,3 @@
+[submodule "epub-base"]
+	path = epub-base
+	url = ../epub-base.git
