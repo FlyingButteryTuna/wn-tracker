@@ -2,12 +2,12 @@ package parsers
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/FlyingButterTuna/wn-tracker/novel"
+	"github.com/PuerkitoBio/goquery"
 )
 
 func FetchPage(url string, client *http.Client) (*http.Response, error) {
@@ -30,7 +30,7 @@ func FetchPage(url string, client *http.Client) (*http.Response, error) {
 	return resp, nil
 }
 
-func SaveAllChapters(novelData *novel.NovelData, novelDirPath string, client *http.Client) error {
+func SaveAllChapters(novelData *novel.NovelData, parser NovelParser, novelDirPath string, client *http.Client) error {
 	_, err := os.Stat(novelDirPath)
 	if os.IsNotExist(err) {
 		err = os.Mkdir(novelDirPath, 0755)
@@ -48,16 +48,22 @@ func SaveAllChapters(novelData *novel.NovelData, novelDirPath string, client *ht
 				return err
 			}
 
+			doc, err := goquery.NewDocumentFromReader(resp.Body)
+			if err != nil {
+				return err
+			}
+
+			htmlStr, err := parser.ParseChapterHtml(doc)
+			if err != nil {
+				return err
+			}
+
 			file, err := os.Create(filepath.Join(novelDirPath, chapter.Title+".html"))
 			if err != nil {
 				return err
 			}
 
-			htmlStr, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return err
-			}
-			_, err = file.Write(htmlStr)
+			_, err = file.Write([]byte(htmlStr))
 			if err != nil {
 				return err
 			}

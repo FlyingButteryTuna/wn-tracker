@@ -16,11 +16,30 @@ import (
 const timeLayoutNarou = "2006/01/02 15:04"
 
 type NarouParser struct {
+	parsers.CommonParser
 	Link string
 }
 
 func NewNarouParser(link *url.URL) *NarouParser {
 	return &NarouParser{Link: link.String()}
+}
+
+func (p *NarouParser) ParseChapterHtml(doc *goquery.Document) (string, error) {
+	result := doc.Find("#novel_honbun")
+	if result.Length() == 0 {
+		return "", fmt.Errorf("chapter text not found")
+	}
+
+	p.RemoveAttrsFromElement("p", result)
+	p.RemoveRP(result)
+	removeRubyWrap(result)
+
+	resultStr, err := result.Html()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Trim(resultStr, "\n"), nil
 }
 
 func (p *NarouParser) ParseAuthor(doc *goquery.Document) (string, error) {
@@ -44,6 +63,7 @@ func (p *NarouParser) ParseTitle(doc *goquery.Document) (string, error) {
 	if titleElem.Length() == 0 {
 		return "", fmt.Errorf("error parsing the novel_title element")
 	}
+
 	return titleElem.Text(), nil
 }
 
@@ -63,7 +83,7 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]novel.SectionData, erro
 	if doc.Find(".novelview_pager").Length() != 0 {
 		client := &http.Client{}
 
-		for i := 2; indexBox.Length() != 0; i++ {
+		for i := 2; i != 3; i++ {
 			parsePage(&result, &chapterCounter, indexBox)
 
 			resp, err := parsers.FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
@@ -110,5 +130,11 @@ func parsePage(result *[]novel.SectionData, chapterCounter *int, indexBox *goque
 
 			(*result)[(*chapterCounter)-1].Chapters = append((*result)[(*chapterCounter)-1].Chapters, chapterData)
 		}
+	})
+}
+
+func removeRubyWrap(doc *goquery.Selection) {
+	doc.Find(".ruby-wrap").Each(func(_ int, s *goquery.Selection) {
+		s.Contents().Unwrap()
 	})
 }

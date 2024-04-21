@@ -9,10 +9,12 @@ import (
 	"unicode"
 
 	"github.com/FlyingButterTuna/wn-tracker/novel"
+	"github.com/FlyingButterTuna/wn-tracker/parsers"
 	"github.com/PuerkitoBio/goquery"
 )
 
 type KakuyomuParser struct {
+	parsers.CommonParser
 	Link            string
 	apolloStateJson map[string]interface{}
 }
@@ -23,7 +25,34 @@ func NewKakuyomuParser(link *url.URL) *KakuyomuParser {
 	return &KakuyomuParser{Link: link.String()}
 }
 
+func (p *KakuyomuParser) ParseChapterHtml(doc *goquery.Document) (string, error) {
+	result := doc.Find("div.widget-episodeBody.js-episode-body[data-viewer-history-path]")
+	if result.Length() == 0 {
+		return "", fmt.Errorf("chapter text not found")
+	}
+
+	p.RemoveAttrsFromElement("p", result)
+	p.RemoveRP(result)
+
+	emphasisSpans := result.Find("em.emphasisDots")
+	p.ReplaceAttrInElement(emphasisSpans, "class", "em-dot")
+
+	resultStr, err := result.Html()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Trim(resultStr, "\n"), nil
+}
+
 func (p *KakuyomuParser) ParseAuthor(doc *goquery.Document) (string, error) {
+	if len(p.apolloStateJson) == 0 {
+		err := p.initializeJson(doc)
+		if err != nil {
+			return "", err
+		}
+	}
+
 	novelDataJson, ok := p.apolloStateJson[p.workId()].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("error parsing novel data json")
@@ -53,6 +82,7 @@ func (p *KakuyomuParser) ParseTitle(doc *goquery.Document) (string, error) {
 			return "", err
 		}
 	}
+
 	novelDataJson, ok := p.apolloStateJson[p.workId()].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("error parsing novel data json")
