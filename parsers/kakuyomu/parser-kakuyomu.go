@@ -15,14 +15,14 @@ import (
 
 type KakuyomuParser struct {
 	parsers.CommonParser
-	Link            string
+	link            string
 	apolloStateJson map[string]interface{}
 }
 
 const timeLayoutKakuyomu = "2006-01-02T15:04:05Z"
 
 func NewKakuyomuParser(link *url.URL) *KakuyomuParser {
-	return &KakuyomuParser{Link: link.String()}
+	return &KakuyomuParser{link: link.String()}
 }
 
 func (p *KakuyomuParser) ParseChapterHtml(doc *goquery.Document) (string, error) {
@@ -183,7 +183,7 @@ func (p *KakuyomuParser) initializeJson(doc *goquery.Document) error {
 }
 
 func (p *KakuyomuParser) workId() string {
-	workId := p.Link[strings.LastIndex(p.Link[:strings.LastIndex(p.Link, "/")-1], "/")+1:]
+	workId := p.link[strings.LastIndex(p.link[:strings.LastIndex(p.link, "/")-1], "/")+1:]
 	workId = strings.Replace(workId, "/", ":", 1)
 	workId = string(unicode.ToUpper(rune(workId[0]))) + workId[1:]
 	workId = strings.Replace(workId, "s", "", 1)

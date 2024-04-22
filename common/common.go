@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/FlyingButterTuna/wn-tracker/parsers"
@@ -18,7 +19,7 @@ func NewNovelParser(urlStr string) (parsers.NovelParser, error) {
 	var parser parsers.NovelParser
 	switch parsedURL.Host {
 	case parsers.HostNarou:
-		parser = narou.NewNarouParser(parsedURL)
+		parser = narou.NewNarouParser(parsedURL, parsers.NewFetcher(&http.Client{}))
 	case parsers.HostKakuyomu:
 		parser = kakuyomu.NewKakuyomuParser(parsedURL)
 	default:

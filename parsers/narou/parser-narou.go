@@ -15,13 +15,18 @@ import (
 
 const timeLayoutNarou = "2006/01/02 15:04"
 
-type NarouParser struct {
-	parsers.CommonParser
-	Link string
+type fetcher interface {
+	FetchPage(url string) (*http.Response, error)
 }
 
-func NewNarouParser(link *url.URL) *NarouParser {
-	return &NarouParser{Link: link.String()}
+type NarouParser struct {
+	fetcher
+	parsers.CommonParser
+	link string
+}
+
+func NewNarouParser(link *url.URL, f fetcher) *NarouParser {
+	return &NarouParser{link: link.String(), fetcher: f}
 }
 
 func (p *NarouParser) ParseChapterHtml(doc *goquery.Document) (string, error) {
@@ -81,12 +86,10 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]novel.SectionData, erro
 	}
 
 	if doc.Find(".novelview_pager").Length() != 0 {
-		client := &http.Client{}
-
 		for i := 2; i != 3; i++ {
 			parsePage(&result, &chapterCounter, indexBox)
 
-			resp, err := parsers.FetchPage(p.Link+"?p="+strconv.Itoa(i), client)
+			resp, err := p.fetcher.FetchPage(p.link + "?p=" + strconv.Itoa(i))
 			if err != nil {
 				break
 			}
