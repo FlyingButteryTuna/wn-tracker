@@ -10,15 +10,15 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-type Fetcher struct {
+type NovelFetcher struct {
 	client *http.Client
 }
 
-func NewFetcher(client *http.Client) *Fetcher {
-	return &Fetcher{client: client}
+func NewFetcher(client *http.Client) *NovelFetcher {
+	return &NovelFetcher{client: client}
 }
 
-func (p *Fetcher) FetchPage(url string) (*http.Response, error) {
+func (p *NovelFetcher) FetchPage(url string) (*http.Response, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -38,7 +38,7 @@ func (p *Fetcher) FetchPage(url string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (p *Fetcher) SaveAllChapters(novelData *novel.NovelData, parser NovelParser, novelDirPath string) error {
+func (p *NovelFetcher) SaveAllChapters(novelData *novel.NovelData, parser NovelParser, novelDirPath string) error {
 	_, err := os.Stat(novelDirPath)
 	if os.IsNotExist(err) {
 		err = os.Mkdir(novelDirPath, 0755)

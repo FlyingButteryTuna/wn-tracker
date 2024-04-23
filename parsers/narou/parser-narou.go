@@ -2,7 +2,6 @@ package narou
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -15,22 +14,19 @@ import (
 
 const timeLayoutNarou = "2006/01/02 15:04"
 
-type fetcher interface {
-	FetchPage(url string) (*http.Response, error)
-}
-
 type NarouParser struct {
-	fetcher
 	parsers.CommonParser
-	link string
+	parsers.PageFetcher
+	novelPage *goquery.Document
+	link      string
 }
 
-func NewNarouParser(link *url.URL, f fetcher) *NarouParser {
-	return &NarouParser{link: link.String(), fetcher: f}
+func NewNarouParser(link *url.URL, novelPage *goquery.Document, f parsers.PageFetcher) *NarouParser {
+	return &NarouParser{link: link.String(), PageFetcher: f, novelPage: novelPage}
 }
 
-func (p *NarouParser) ParseChapterHtml(doc *goquery.Document) (string, error) {
-	result := doc.Find("#novel_honbun")
+func (p *NarouParser) ParseChapterHtml(chapterPage *goquery.Document) (string, error) {
+	result := chapterPage.Find("#novel_honbun")
 	if result.Length() == 0 {
 		return "", fmt.Errorf("chapter text not found")
 	}
@@ -47,8 +43,8 @@ func (p *NarouParser) ParseChapterHtml(doc *goquery.Document) (string, error) {
 	return strings.Trim(resultStr, "\n"), nil
 }
 
-func (p *NarouParser) ParseAuthor(doc *goquery.Document) (string, error) {
-	authorElem := doc.Find(".novel_writername")
+func (p *NarouParser) ParseAuthor() (string, error) {
+	authorElem := p.novelPage.Find(".novel_writername")
 	if authorElem.Length() == 0 {
 		return "", fmt.Errorf("error parsing the novel_writername element")
 	}
@@ -63,8 +59,8 @@ func (p *NarouParser) ParseAuthor(doc *goquery.Document) (string, error) {
 	return authorName, nil
 }
 
-func (p *NarouParser) ParseTitle(doc *goquery.Document) (string, error) {
-	titleElem := doc.Find("p.novel_title")
+func (p *NarouParser) ParseTitle() (string, error) {
+	titleElem := p.novelPage.Find("p.novel_title")
 	if titleElem.Length() == 0 {
 		return "", fmt.Errorf("error parsing the novel_title element")
 	}
@@ -72,10 +68,10 @@ func (p *NarouParser) ParseTitle(doc *goquery.Document) (string, error) {
 	return titleElem.Text(), nil
 }
 
-func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]novel.SectionData, error) {
+func (p *NarouParser) ParseTOC() ([]novel.SectionData, error) {
 	result := make([]novel.SectionData, 0)
 
-	indexBox := doc.Find(".index_box")
+	indexBox := p.novelPage.Find(".index_box")
 
 	chapterCounter := 0
 	if indexBox.Find(".chapter_title").Length() == 0 {
@@ -85,11 +81,11 @@ func (p *NarouParser) ParseTOC(doc *goquery.Document) ([]novel.SectionData, erro
 		chapterCounter++
 	}
 
-	if doc.Find(".novelview_pager").Length() != 0 {
+	if p.novelPage.Find(".novelview_pager").Length() != 0 {
 		for i := 2; i != 3; i++ {
 			parsePage(&result, &chapterCounter, indexBox)
 
-			resp, err := p.fetcher.FetchPage(p.link + "?p=" + strconv.Itoa(i))
+			resp, err := p.PageFetcher.FetchPage(p.link + "?p=" + strconv.Itoa(i))
 			if err != nil {
 				break
 			}

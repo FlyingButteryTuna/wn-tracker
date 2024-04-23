@@ -15,18 +15,22 @@ import (
 
 type KakuyomuParser struct {
 	parsers.CommonParser
-	link            string
 	apolloStateJson map[string]interface{}
+	link            string
 }
 
 const timeLayoutKakuyomu = "2006-01-02T15:04:05Z"
 
-func NewKakuyomuParser(link *url.URL) *KakuyomuParser {
-	return &KakuyomuParser{link: link.String()}
+func NewKakuyomuParser(link *url.URL, novelPage *goquery.Document) (*KakuyomuParser, error) {
+	apolloStateJson, err := initializeJson(novelPage)
+	if err != nil {
+		return nil, err
+	}
+	return &KakuyomuParser{link: link.String(), apolloStateJson: apolloStateJson}, nil
 }
 
-func (p *KakuyomuParser) ParseChapterHtml(doc *goquery.Document) (string, error) {
-	result := doc.Find("div.widget-episodeBody.js-episode-body[data-viewer-history-path]")
+func (p *KakuyomuParser) ParseChapterHtml(chapterPage *goquery.Document) (string, error) {
+	result := chapterPage.Find("div.widget-episodeBody.js-episode-body[data-viewer-history-path]")
 	if result.Length() == 0 {
 		return "", fmt.Errorf("chapter text not found")
 	}
@@ -45,14 +49,7 @@ func (p *KakuyomuParser) ParseChapterHtml(doc *goquery.Document) (string, error)
 	return strings.Trim(resultStr, "\n"), nil
 }
 
-func (p *KakuyomuParser) ParseAuthor(doc *goquery.Document) (string, error) {
-	if len(p.apolloStateJson) == 0 {
-		err := p.initializeJson(doc)
-		if err != nil {
-			return "", err
-		}
-	}
-
+func (p *KakuyomuParser) ParseAuthor() (string, error) {
 	novelDataJson, ok := p.apolloStateJson[p.workId()].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("error parsing novel data json")
@@ -75,14 +72,7 @@ func (p *KakuyomuParser) ParseAuthor(doc *goquery.Document) (string, error) {
 	return authorName, nil
 }
 
-func (p *KakuyomuParser) ParseTitle(doc *goquery.Document) (string, error) {
-	if len(p.apolloStateJson) == 0 {
-		err := p.initializeJson(doc)
-		if err != nil {
-			return "", err
-		}
-	}
-
+func (p *KakuyomuParser) ParseTitle() (string, error) {
 	novelDataJson, ok := p.apolloStateJson[p.workId()].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("error parsing novel data json")
@@ -95,14 +85,7 @@ func (p *KakuyomuParser) ParseTitle(doc *goquery.Document) (string, error) {
 	return novelTitle, nil
 }
 
-func (p *KakuyomuParser) ParseTOC(doc *goquery.Document) ([]novel.SectionData, error) {
-	if len(p.apolloStateJson) == 0 {
-		err := p.initializeJson(doc)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+func (p *KakuyomuParser) ParseTOC() ([]novel.SectionData, error) {
 	sections := make([]novel.SectionData, 0)
 
 	toc, ok := p.apolloStateJson[p.workId()].(map[string]interface{})["tableOfContents"].([]interface{})
@@ -155,31 +138,30 @@ func (p *KakuyomuParser) ParseTOC(doc *goquery.Document) ([]novel.SectionData, e
 	return sections, nil
 }
 
-func (p *KakuyomuParser) initializeJson(doc *goquery.Document) error {
-	jsonDataString := doc.Find(`[type="application/json"]`).Text()
+func initializeJson(novelPage *goquery.Document) (map[string]interface{}, error) {
+	jsonDataString := novelPage.Find(`[type="application/json"]`).Text()
 
 	var jsonData map[string]interface{}
 	if err := json.Unmarshal([]byte(jsonDataString), &jsonData); err != nil {
-		return fmt.Errorf("error parsing JSON data: %w", err)
+		return nil, fmt.Errorf("error parsing JSON data: %w", err)
 	}
 
 	props, ok := jsonData["props"].(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("error parsing 'props' from JSON data")
+		return nil, fmt.Errorf("error parsing 'props' from JSON data")
 	}
 
 	pageProps, ok := props["pageProps"].(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("error parsing 'pageProps' from JSON data")
+		return nil, fmt.Errorf("error parsing 'pageProps' from JSON data")
 	}
 
 	apolloState, ok := pageProps["__APOLLO_STATE__"].(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("error parsing '__APOLLO_STATE__' from JSON data")
+		return nil, fmt.Errorf("error parsing '__APOLLO_STATE__' from JSON data")
 	}
 
-	p.apolloStateJson = apolloState
-	return nil
+	return apolloState, nil
 }
 
 func (p *KakuyomuParser) workId() string {

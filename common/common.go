@@ -8,9 +8,10 @@ import (
 	"github.com/FlyingButterTuna/wn-tracker/parsers"
 	"github.com/FlyingButterTuna/wn-tracker/parsers/kakuyomu"
 	"github.com/FlyingButterTuna/wn-tracker/parsers/narou"
+	"github.com/PuerkitoBio/goquery"
 )
 
-func NewNovelParser(urlStr string) (parsers.NovelParser, error) {
+func NewNovelParser(urlStr string, novelPage *goquery.Document) (parsers.NovelParser, error) {
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
@@ -19,9 +20,12 @@ func NewNovelParser(urlStr string) (parsers.NovelParser, error) {
 	var parser parsers.NovelParser
 	switch parsedURL.Host {
 	case parsers.HostNarou:
-		parser = narou.NewNarouParser(parsedURL, parsers.NewFetcher(&http.Client{}))
+		parser = narou.NewNarouParser(parsedURL, novelPage, parsers.NewFetcher(&http.Client{}))
 	case parsers.HostKakuyomu:
-		parser = kakuyomu.NewKakuyomuParser(parsedURL)
+		parser, err = kakuyomu.NewKakuyomuParser(parsedURL, novelPage)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("couldn't recognize the host")
 	}
